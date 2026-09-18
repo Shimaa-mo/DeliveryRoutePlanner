@@ -5,9 +5,9 @@ string filePath = "C:\\Users\\shosho\\Desktop\\test.txt";
 
 List<Delivery> deliveries = ReadDeliveriesFromFile(filePath);
 
-Trip planner = new Trip();
+TripPlanner planner = new TripPlanner();
 
-(Dictionary<int, Trip> newTrips, Dictionary<int, double> freeWeights) = planner.Create(deliveries);
+(Dictionary<int, Trip> newTrips, Dictionary<int, double> freeWeights) = planner.PlanTrips(deliveries);
 
 //for (int i = 0; i < trips.Count; i++)
 //{
@@ -36,7 +36,7 @@ int id = newTrips.Values.Sum(t => t.Deliveries.Count);
 Delivery d = new Delivery(id, "Nasr City", 1, 4);
 
 
-Dictionary<int, Trip> trips2 = planner.AddNewDelivery(d, newTrips, freeWeights);
+Dictionary<int, Trip> trips2 = planner.ScheduleDelivery(d, newTrips, freeWeights);
 
 PrintTrips2(trips2);
 
@@ -78,7 +78,7 @@ static void PrintTrips(List<Trip> trips)
                 $"Weight: {delivery.PackageWeight} kg");
         }
 
-        Console.WriteLine($"Total Weight: {trips[i].TotalWeight()} kg");
+        Console.WriteLine($"Total Weight: {trips[i].TotalWeight} kg");
         Console.WriteLine($"Free Weight: {trips[i].FreeWeight()} kg");
         Console.WriteLine();
     }
@@ -100,7 +100,7 @@ static void PrintTrips2(Dictionary<int, Trip> trips)
                 $"Weight: {delivery.PackageWeight} kg");
         }
 
-        Console.WriteLine($"Total Weight: {trip.TotalWeight()} kg");
+        Console.WriteLine($"Total Weight: {trip.TotalWeight} kg");
         Console.WriteLine($"Free Weight: {trip.FreeWeight()} kg");
         Console.WriteLine();
     }
