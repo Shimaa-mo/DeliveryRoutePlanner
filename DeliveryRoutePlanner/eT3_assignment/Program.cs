@@ -7,41 +7,34 @@ List<Delivery> deliveries = ReadDeliveriesFromFile(filePath);
 
 Trip planner = new Trip();
 
-List<Trip> trips = planner.Create(deliveries);
+(Dictionary<int, Trip> newTrips, Dictionary<int, double> freeWeights) = planner.Create(deliveries);
 
-for (int i = 0; i < trips.Count; i++)
-{
-    trips[i].Id = i;
-    Delivery delivery = trips[i].GetDeliveries().MinBy(d => d.id);
-    trips[i].Priority = delivery.priority;
-    trips[i].Area = delivery.area;
-    
-}
-Dictionary<int, Trip> newTrips = trips
-    .Select((trip, index) => (trip, index))
-    .ToDictionary(x => x.index, x => x.trip);
+//for (int i = 0; i < trips.Count; i++)
+//{
+//    trips[i].Id = i;
+//    Delivery delivery = trips[i].GetDeliveries().MinBy(d => d.id);
+//    trips[i].Priority = delivery.priority;
+//    trips[i].Area = delivery.area;
 
-var freeWeights = new Dictionary<int, double>(trips.Count);
-for (int i = 0; i < trips.Count; i++)
-{
-    freeWeights[i] = trips[i].FreeWeight();
-}
+//}
+//Dictionary<int, Trip> newTrips = trips
+//    .Select((trip, index) => (trip, index))
+//    .ToDictionary(x => x.index, x => x.trip);
 
-
-PrintTrips(trips);
-
-Console.WriteLine("\n \n \n \n Newwww \n\n\n\n" );
-
-Delivery d = new Delivery()
-{
-    id = 8,
-    area = "Nasr City",
-    priority = 1,
-    packageWeight = 4
-};
+//var freeWeights = new Dictionary<int, double>(trips.Count);
+//for (int i = 0; i < trips.Count; i++)
+//{
+//    freeWeights[i] = trips[i].FreeWeight();
+//}
 
 
-//check of id
+PrintTrips2(newTrips);
+
+Console.WriteLine("\n \n \n \n Newwww \n\n\n\n");
+
+int id = newTrips.Values.Sum(t => t.Deliveries.Count);
+Delivery d = new Delivery(id, "Nasr City", 1, 4);
+
 
 Dictionary<int, Trip> trips2 = planner.AddNewDelivery(d, newTrips, freeWeights);
 
@@ -58,13 +51,10 @@ static List<Delivery> ReadDeliveriesFromFile(string filePath)
     {
         string[] parts = line.Split('|');
 
-        Delivery delivery = new Delivery
-        {
-            id = int.Parse(parts[0]),
-            area = parts[1],
-            priority = int.Parse(parts[2]),
-            packageWeight = double.Parse(parts[3])
-        };
+        Delivery delivery = new Delivery(int.Parse(parts[0])
+            , parts[1]
+            , int.Parse(parts[2])
+            , double.Parse(parts[3]));
 
         deliveries.Add(delivery);
     }
@@ -82,10 +72,10 @@ static void PrintTrips(List<Trip> trips)
         foreach (Delivery delivery in trips[i].GetDeliveries())
         {
             Console.WriteLine(
-                $"ID: {delivery.id}, " +
-                $"Area: {delivery.area}, " +
-                $"Priority: {delivery.priority}, " +
-                $"Weight: {delivery.packageWeight} kg");
+                $"ID: {delivery.Id}, " +
+                $"Area: {delivery.Area}, " +
+                $"Priority: {delivery.Priority}, " +
+                $"Weight: {delivery.PackageWeight} kg");
         }
 
         Console.WriteLine($"Total Weight: {trips[i].TotalWeight()} kg");
@@ -104,10 +94,10 @@ static void PrintTrips2(Dictionary<int, Trip> trips)
         foreach (Delivery delivery in trip.GetDeliveries())
         {
             Console.WriteLine(
-                $"ID: {delivery.id}, " +
-                $"Area: {delivery.area}, " +
-                $"Priority: {delivery.priority}, " +
-                $"Weight: {delivery.packageWeight} kg");
+                $"ID: {delivery.Id}, " +
+                $"Area: {delivery.Area}, " +
+                $"Priority: {delivery.Priority}, " +
+                $"Weight: {delivery.PackageWeight} kg");
         }
 
         Console.WriteLine($"Total Weight: {trip.TotalWeight()} kg");
