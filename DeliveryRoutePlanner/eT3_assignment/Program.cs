@@ -11,10 +11,10 @@ List<Trip> trips = planner.Create(deliveries);
 
 for (int i = 0; i < trips.Count; i++)
 {
-    trips[i].id = i;
+    trips[i].Id = i;
     Delivery delivery = trips[i].GetDeliveries().MinBy(d => d.id);
-    trips[i].priority = delivery.priority;
-    trips[i].area = delivery.area;
+    trips[i].Priority = delivery.priority;
+    trips[i].Area = delivery.area;
     
 }
 Dictionary<int, Trip> newTrips = trips
