@@ -8,298 +8,233 @@ namespace eT3_assignment
 {
     internal class TripPlanner
     {
-        double MaxCapacity = 10.0;
-        public (Dictionary<int, Trip>, Dictionary<int, double>) PlanTrips(List<Delivery> deliveries)
+        
+        
+        public List<Trip> PlanTrips(List<Delivery> deliveries)
         {
             if (deliveries is null || deliveries.Count == 0)
                 throw new ArgumentException("Deliveries list cannot be null or empty.", nameof(deliveries));
 
-            List<Trip> trips = new List<Trip>();
-            List<Delivery> skippedDeliveries = new List<Delivery>();
-            List<double> freeWeights = new List<double>();
-
-            Trip trip = new Trip();
-            Delivery urgentDelivery = null;
+            var trips = new List<Trip>();
+            var skippedDeliveries = new List<Delivery>();
+            var overweightDeliveries = new List<Delivery>();
+            var currentTrip = new Trip();
 
             while (deliveries.Count > 0)
             {
-                urgentDelivery = deliveries.MinBy(d => d.Priority);
-                Trip result = TryAssignDelivery(ref urgentDelivery, ref trip, trips, deliveries, skippedDeliveries, freeWeights);
-                if (result is not null)
+                // if it's new trip , put highest priority first
+                if (currentTrip.DeliveriesCount() == 0)
                 {
-                    trip = result;
-                    trip.Priority = urgentDelivery.Priority;
-                    trip.Area = urgentDelivery.Area;
-                    break;
+                    var seed = deliveries.MinBy(d => d.Priority);
+                    currentTrip.Area = seed.Area;
+                    currentTrip.Priority = seed.Priority;
                 }
-            }
 
-            while (deliveries.Count != 0)
-            {
-                Delivery relatedDelivery = deliveries
-                    .Where(d => d.Area == urgentDelivery.Area)
-                    .Where(d => !skippedDeliveries.Contains(d))
+                // put the next possible delivery in the trip 
+                var delivery = deliveries
+                    .Where(d => d.Area == currentTrip.Area && !skippedDeliveries.Contains(d))
                     .MinBy(d => d.Priority);
 
-                if (relatedDelivery is null)
+                // if there is no available delivery for this trip , close it and open another one
+                if (delivery is null)
                 {
-                    if (trip.DeliveriesCount() > 0 && !trips.Contains(trip))
-                    {
-                        trip.Id = trips.Count();
-                        trips.Add(trip);
-                        freeWeights.Add(trip.FreeWeight());
-                    }
+                    currentTrip.Id = trips.Count + 1;
+                    trips.Add(currentTrip);
 
-                    trip = new Trip();
+                    currentTrip = new Trip();
                     skippedDeliveries.Clear();
-                    urgentDelivery = deliveries.MinBy(d => d.Priority);
-                    trip.Priority = urgentDelivery.Priority;
-                    trip.Area = urgentDelivery.Area;
                     continue;
                 }
 
-                Trip result = TryAssignDelivery(ref relatedDelivery, ref trip, trips, deliveries, skippedDeliveries, freeWeights);
-                if (result is not null)
+                
+                // check the availability of the delivery
+                if (delivery.PackageWeight > Trip.MaxCapacity)
                 {
-                    trip = result;
-                    urgentDelivery = relatedDelivery;
+                    overweightDeliveries.Add(delivery);
+                    deliveries.Remove(delivery);
 
+                }
+                else if (currentTrip.TryAdd(delivery))
+                {
+                    deliveries.Remove(delivery);
+                }
+                else
+                {
+                    skippedDeliveries.Add(delivery);
                 }
             }
 
-            if (!trips.Contains(trip))
+            // add the last trip to the trips
+            if (currentTrip.DeliveriesCount() > 0)
             {
-                trip.Id = trips.Count();
-                trips.Add(trip);
-                freeWeights.Add(trip.FreeWeight());
+                currentTrip.Id = trips.Count + 1;
+                trips.Add(currentTrip);
             }
-            var dict = freeWeights
-                .Index()
-                .ToDictionary(x => x.Index, x => x.Item);
-            return (trips.ToDictionary(t => t.Id, t => t), dict);
+
+            if (overweightDeliveries.Count > 0)
+            {
+                Console.WriteLine("\nWarning: The following deliveries could not be scheduled because they exceed the 10 kg capacity:");
+
+                foreach (var delivery in overweightDeliveries)
+                {
+                    Console.WriteLine(
+                        $"  -> ID: {delivery.Id} | Weight: {delivery.PackageWeight} kg"
+                    );
+                }
+            }
+
+            return trips;
         }
 
-        private static Trip TryAssignDelivery(
-            ref Delivery delivery,
-            ref Trip trip,
-            List<Trip> trips,
-            List<Delivery> deliveries,
-            List<Delivery> skippedDeliveries,
-            List<double> freeWeights)
-        {
-            try
-            {
-                trip.AddDelivery(delivery);
-                deliveries.Remove(delivery);
-                return trip;
-            }
-            catch (PackageWeightExceededException)
-            {
-                Console.WriteLine("This is not a valid delivery, package weight must be <= 10 kg.");
-                deliveries.Remove(delivery);
-                return null;
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                skippedDeliveries.Add(delivery);
-                return null;
-            }
-            catch (TripFullException)
-            {
-                skippedDeliveries.Clear();
-                freeWeights.Add(trip.FreeWeight());
-                trip.Id = trips.Count();
-                trips.Add(trip);
-                trip = new Trip();
-                return trip;
-            }
-        }
 
-        public Dictionary<int, Trip> ScheduleDelivery(
-            Delivery delivery,
-            Dictionary<int, Trip> trips,
-            Dictionary<int, double> freeWeights)
+        public List<Trip> ScheduleDelivery(Delivery delivery, List<Trip> trips)
         {
+            // First : if there is a higher priority trip and has space for the delivery
+            var readyTrip = trips
+                .Where(t => t.Area == delivery.Area
+                         && t.Priority <= delivery.Priority
+                         && t.FreeWeight() >= delivery.PackageWeight)
+                .OrderBy(t => t.Priority)
+                .FirstOrDefault();
 
-            Trip trip = new Trip
+            if (readyTrip != null)
+            {
+                readyTrip.AddDelivery(delivery);
+                return trips;
+            }
+
+            // Seconde : get all trips that has lower priority
+            var lowerTrips = trips
+                .Where(t => t.Priority >= delivery.Priority)
+                .ToList();
+
+            //if the delivery is the lowest priority , put it at the end
+            if (lowerTrips.Count == 0)
+            {
+                var endTrip = new Trip
+                {
+                    Id = trips.Count + 1,
+                    Priority = delivery.Priority,
+                    Area = delivery.Area
+                };
+                endTrip.AddDelivery(delivery);
+                trips.Add(endTrip);
+                return trips;
+            }
+
+            // get the 
+            var lowerTrip = lowerTrips.MinBy(t => t.Priority);
+
+            // if the first trip -that has lower priority than this delivery- has space for this delivery , add delivery to it and return
+            if (lowerTrip.FreeWeight() >= delivery.PackageWeight && lowerTrip.Area == delivery.Area)
+            {
+                lowerTrip.AddDelivery(delivery);
+                lowerTrip.Priority = delivery.Priority;
+                return trips;
+            }
+
+            // else if no space for it, add a trip delivery before all lower prioity trips 
+            var trip = new Trip
             {
                 Priority = delivery.Priority,
                 Area = delivery.Area
             };
             trip.AddDelivery(delivery);
 
-            // if there is any higher priority trips has space for this delivery
-            var upperTrips = trips
-                .Where(t => t.Value.Area == delivery.Area
-                         && t.Value.Priority <= delivery.Priority
-                         && t.Value.FreeWeight() >= delivery.PackageWeight)
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            //shift the trips
+            int insertIndex = trips.IndexOf(lowerTrip);
+            trips.Insert(insertIndex, trip);
 
-            if (upperTrips.Count != 0)
+            // to be not 0 index
+            for (int i = 0; i < trips.Count; i++)
             {
-                Trip readyTrip = upperTrips.OrderBy(kvp => kvp.Value.Priority).First().Value;
-                trips[readyTrip.Id].AddDelivery(delivery);
-                freeWeights[readyTrip.Id] -= delivery.PackageWeight;
-                return trips;
+                trips[i].Id = i + 1;
             }
 
-            var lowerTrips = trips
-                .Where(kvp => kvp.Value.Priority >= delivery.Priority)
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
-            //if there it is the lowest priority trip , and no space in any trip above it
-            if (lowerTrips.Count == 0)
-            {
-                trip.Id = trips.Count + 1;
-                freeWeights[trip.Id] = MaxCapacity - delivery.PackageWeight;
-                trips.Add(trip.Id, trip);
-                return trips;
-            }
-
-            var lowerTrip = lowerTrips.MinBy(d => d.Value.Priority);
-            // if the first trip -that has lower priority than this delivery- has space for it
-            if (freeWeights[lowerTrip.Key] >= delivery.PackageWeight && lowerTrip.Value.Area == delivery.Area)
-            {
-                trips[lowerTrip.Key].AddDelivery(delivery);
-                trips[lowerTrip.Key].Priority = delivery.Priority;
-                freeWeights[lowerTrip.Key] = trips[lowerTrip.Key].FreeWeight();
-                return trips;
-            }
-
-            // puting a trip ahead of all the lower priority trips
-            trip.Id = lowerTrip.Key;
-            ShiftKeysUp(trips, freeWeights, trip); //pushing the index of all trips that bellow that trip
-            trips.Add(trip.Id, trip);
-
-            //if the delivery took all the trip , then we don't need to organize the rest of the trips
-            if (delivery.PackageWeight >= MaxCapacity)
+            // if the trip has no space for other deliveries , return
+            if (delivery.PackageWeight >= Trip.MaxCapacity)
                 return trips;
 
-            // if there is space in this trip , then we can move deliveries from bellow trips to this trip
-            double freeWeight = MaxCapacity - delivery.PackageWeight;
+            // if the trip has space for other trips get from lower priority trips , and organize them same way
+            double freeWeight = trip.FreeWeight();
             var sameAreaTrips = lowerTrips
-                .Where(t => t.Value.Area == delivery.Area)
-                .OrderBy(d => d.Value.Id)
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                .Where(t => t.Area == delivery.Area)
+                .OrderBy(t => t.Id)
+                .ToList();
 
-            RebalanceDeliveries(sameAreaTrips, freeWeight, trip, trips, freeWeights);
+            RebalanceDeliveries(sameAreaTrips, trip, trips);
             return trips;
         }
 
-        public void RebalanceDeliveries(
-            Dictionary<int, Trip> sameAreaTrips,
-            double freeWeight,
-            Trip trip,
-            Dictionary<int, Trip> trips,
-            Dictionary<int, double> freeWeights)
+        public void RebalanceDeliveries(List<Trip> sameAreaTrips, Trip initialTrip, List<Trip> trips)
         {
-            if (sameAreaTrips.Count == 0)
-                return;
+            // queue for trips that has space can be filled by deliveries from other trips
+            var rebalanceQueue = new Queue<Trip>();
+            rebalanceQueue.Enqueue(initialTrip);
 
-            //see all trips bellow this trip and in the  same area
-            foreach (Trip t in sameAreaTrips.Values)
+            while (rebalanceQueue.Count > 0)
             {
-                //see all deliveries in this trip that can be moved to the base trip
-                while (true)
+                Trip targetTrip = rebalanceQueue.Dequeue();
+
+                // if the target trip has no more space , or didnt removed from the trips
+                if (targetTrip.FreeWeight() <= 0 || !trips.Contains(targetTrip))
+                    continue;
+
+                // lower priority trips in the same area
+                var lowerTrips = sameAreaTrips
+                    .Where(t => t != targetTrip && t.Priority >= targetTrip.Priority && trips.Contains(t))
+                    .OrderBy(t => t.Id)
+                    .ToList();
+
+                foreach (Trip sourceTrip in lowerTrips)
                 {
-
-                    Delivery d = t.GetDeliveries()
-                        .Where(item => item.PackageWeight <= freeWeight)
-                        .MinBy(item => item.Priority);
-
-                    if (d == null)
+                    if (targetTrip.FreeWeight() <= 0)
                         break;
 
-                    //if delivery fits , add it to base trip , remove it from old trip 
-                    trip.AddDelivery(d);
-                    t.Deliveries.Remove(d);
-                    t.TotalWeight -= d.PackageWeight;
-
-                    freeWeight -= d.PackageWeight;
-                    freeWeights[trip.Id] = freeWeight;
-                    freeWeights[t.Id] += d.PackageWeight;
-
-                    //if current trip has no more deliveries , then remove the whole trip
-                    if (t.DeliveriesCount() == 0)
+                    // from this sourceTrip take the deliveries that fits in the target trip , and put source trip in queue (if you took from it)
+                    while (true)
                     {
-                        trips.Remove(t.Id);
-                        freeWeights.Remove(t.Id);
-                        ShiftKeysDown(trips, freeWeights, t);
-                        break;
+                        Delivery bestDelivery = sourceTrip.Deliveries
+                            .Where(d => d.PackageWeight <= targetTrip.FreeWeight())
+                            .MinBy(d => d.Priority);
+
+                        if (bestDelivery == null)
+                            break;
+
+                        // transefer trip
+                        targetTrip.AddDelivery(bestDelivery);
+                        sourceTrip.RemoveDelivery(bestDelivery);
+
+                        // 2. if the sourceTrip has no more deliveries , remove it
+                        if (sourceTrip.DeliveriesCount() == 0)
+                        {
+                            trips.Remove(sourceTrip);
+                            sameAreaTrips.Remove(sourceTrip);
+                            break;
+                        }
+
+                        // change the priority of the sourceTrip with its highest priority delivery
+                        sourceTrip.Priority = sourceTrip.Deliveries.Min(d => d.Priority);
+
+                        // sourceTrip now has empty space , then add it to the queue to be able to take deliveries from lower trips
+                        if (!rebalanceQueue.Contains(sourceTrip))
+                        {
+                            rebalanceQueue.Enqueue(sourceTrip);
+                        }
+
+                        // if targetTrip is full , then go to the next trip in the queue
+                        if (targetTrip.FreeWeight() <= 0)
+                            break;
                     }
-
-                    //if we removed a delivery from current trip , then change the trip priority by its highest priority delivery
-                    t.Priority = t.GetDeliveries().MinBy(x => x.Priority).Priority;
-
-                    //if we took from current trip a delivery then we need to reorganize this current trip (take deliveries from bellow trips)
-                    sameAreaTrips = sameAreaTrips
-                        .Where(s => s.Value.Priority >= t.Priority && s.Value != t)
-                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
-                    RebalanceDeliveries(sameAreaTrips, MaxCapacity - t.TotalWeight, t, trips, freeWeights);
-
-                    //if there is no other space in the base trip , then break
-                    if (freeWeight <= 0)
-                        return;
                 }
             }
-        }
 
-        public void ShiftKeysDown(
-            Dictionary<int, Trip> trips,
-            Dictionary<int, double> freeWeights,
-            Trip t)
-        {
-            var keysToShift = trips.Keys
-                .Where(k => k > t.Id)
-                .OrderBy(k => k)
-                .ToList();
-
-            foreach (int key in keysToShift)
+            // to be not 0 index
+            for (int i = 0; i < trips.Count; i++)
             {
-                Trip trip = trips[key];
-                trips.Remove(key);
-                trip.Id -= 1;
-                trips[key - 1] = trip;
-
-                double freeWeight = freeWeights[key];
-                freeWeights.Remove(key);
-                freeWeights[key - 1] = freeWeight;
+                trips[i].Id = i + 1;
             }
         }
-
-        public void ShiftKeysUp(
-            Dictionary<int, Trip> trips,
-            Dictionary<int, double> freeWeights,
-            Trip t)
-        {
-            var shiftedTrips = trips
-                .Select(kvp =>
-                {
-                    int newKey = kvp.Key >= t.Id ? kvp.Key + 1 : kvp.Key;
-                    if (kvp.Key >= t.Id)
-                        kvp.Value.Id++;
-
-                    return new KeyValuePair<int, Trip>(newKey, kvp.Value);
-                })
-                .ToList();
-
-            var shiftedFreeWeights = freeWeights
-                .Select(kvp =>
-                {
-                    int newKey = kvp.Key >= t.Id ? kvp.Key + 1 : kvp.Key;
-                    return new KeyValuePair<int, double>(newKey, kvp.Value);
-                })
-                .ToList();
-
-            trips.Clear();
-            freeWeights.Clear();
-
-            foreach (var pair in shiftedTrips)
-                trips.Add(pair.Key, pair.Value);
-
-            foreach (var pair in shiftedFreeWeights)
-                freeWeights.Add(pair.Key, pair.Value);
-        }
+        
     }
 }

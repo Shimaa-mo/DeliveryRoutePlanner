@@ -6,8 +6,9 @@ namespace eT3_assignment
 {
     internal class Trip
     {
-        private const double MaxCapacity = 10.0;
+        public const double MaxCapacity = 10.0;
 
+        public static int TotalDeliveriesAllTrips { get; private set; }
         public List<Delivery> Deliveries { get; private set; }
         public double TotalWeight { get; set; }
 
@@ -33,10 +34,10 @@ namespace eT3_assignment
 
         public bool TryAdd(Delivery delivery)
         {
-            if (!CanFit(delivery)) return false;
+            if (delivery is null || delivery.PackageWeight + TotalWeight > MaxCapacity)
+                return false;
 
-            Deliveries.Add(delivery);
-            TotalWeight += delivery.PackageWeight;
+            AddDelivery(delivery); 
             return true;
         }
         public void AddDelivery(Delivery delivery)
@@ -59,8 +60,25 @@ namespace eT3_assignment
             {
                 throw new ArgumentOutOfRangeException(nameof(TotalWeight), "Capacity of the trip exceeded 10 kg");
             }
+
+            TotalDeliveriesAllTrips++;
         }
 
-        
+        public bool RemoveDelivery(Delivery delivery)
+        {
+            if (delivery is null)
+                return false;
+
+            bool removed = Deliveries.Remove(delivery);
+            if (removed)
+            {
+                TotalWeight -= delivery.PackageWeight;
+                TotalDeliveriesAllTrips--;
+            }
+            
+            return removed;
+        }
+
+
     }
 }

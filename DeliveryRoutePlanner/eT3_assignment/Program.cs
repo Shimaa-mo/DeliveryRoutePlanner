@@ -1,107 +1,170 @@
 ﻿using eT3_assignment;
+using System;
+using System.Collections.Generic;
 using System.IO;
 
-string filePath = "C:\\Users\\shosho\\Desktop\\test.txt";
-
-List<Delivery> deliveries = ReadDeliveriesFromFile(filePath);
-
-TripPlanner planner = new TripPlanner();
-
-(Dictionary<int, Trip> newTrips, Dictionary<int, double> freeWeights) = planner.PlanTrips(deliveries);
-
-//for (int i = 0; i < trips.Count; i++)
-//{
-//    trips[i].Id = i;
-//    Delivery delivery = trips[i].GetDeliveries().MinBy(d => d.id);
-//    trips[i].Priority = delivery.priority;
-//    trips[i].Area = delivery.area;
-
-//}
-//Dictionary<int, Trip> newTrips = trips
-//    .Select((trip, index) => (trip, index))
-//    .ToDictionary(x => x.index, x => x.trip);
-
-//var freeWeights = new Dictionary<int, double>(trips.Count);
-//for (int i = 0; i < trips.Count; i++)
-//{
-//    freeWeights[i] = trips[i].FreeWeight();
-//}
-
-
-PrintTrips2(newTrips);
-
-Console.WriteLine("\n \n \n \n Newwww \n\n\n\n");
-
-int id = newTrips.Values.Sum(t => t.Deliveries.Count);
-Delivery d = new Delivery(id, "Nasr City", 1, 4);
-
-
-Dictionary<int, Trip> trips2 = planner.ScheduleDelivery(d, newTrips, freeWeights);
-
-PrintTrips2(trips2);
-
-
-static List<Delivery> ReadDeliveriesFromFile(string filePath)
+class Program
 {
-    List<Delivery> deliveries = new List<Delivery>();
-
-    string[] lines = File.ReadAllLines(filePath);
-
-    foreach (string line in lines)
+    static void Main()
     {
-        string[] parts = line.Split('|');
+        Console.WriteLine("=== Delivery & Trip Management System ===\n");
 
-        Delivery delivery = new Delivery(int.Parse(parts[0])
-            , parts[1]
-            , int.Parse(parts[2])
-            , double.Parse(parts[3]));
+        string filePath = GetValidFilePath();
+        List<Delivery> deliveries = ReadDeliveriesFromFile(filePath);
 
-        deliveries.Add(delivery);
-    }
-
-    return deliveries;
-}
-
-static void PrintTrips(List<Trip> trips)
-{
-    for (int i = 0; i < trips.Count; i++)
-    {
-        Console.WriteLine($"Trip {i + 1}");
-        Console.WriteLine("----------------");
-
-        foreach (Delivery delivery in trips[i].GetDeliveries())
+        if (deliveries.Count == 0)
         {
-            Console.WriteLine(
-                $"ID: {delivery.Id}, " +
-                $"Area: {delivery.Area}, " +
-                $"Priority: {delivery.Priority}, " +
-                $"Weight: {delivery.PackageWeight} kg");
+            Console.WriteLine("The file is empty. Exiting program.");
+            return;
         }
 
-        Console.WriteLine($"Total Weight: {trips[i].TotalWeight} kg");
-        Console.WriteLine($"Free Weight: {trips[i].FreeWeight()} kg");
-        Console.WriteLine();
-    }
-}
+        TripPlanner planner = new TripPlanner();
+        List<Trip> trips = planner.PlanTrips(deliveries);
 
-static void PrintTrips2(Dictionary<int, Trip> trips)
-{
-    foreach (var (index, trip) in trips.OrderBy(kvp => kvp.Key))
-    {
-        Console.WriteLine($"Trip {index + 1}");
-        Console.WriteLine("----------------");
+        Console.WriteLine("\n[Initial Trips Planned Successfully]");
+        PrintTrips(trips);
 
-        foreach (Delivery delivery in trip.GetDeliveries())
+        bool running = true;
+        while (running)
         {
-            Console.WriteLine(
-                $"ID: {delivery.Id}, " +
-                $"Area: {delivery.Area}, " +
-                $"Priority: {delivery.Priority}, " +
-                $"Weight: {delivery.PackageWeight} kg");
+            Console.WriteLine("\nSelect an option:");
+            Console.WriteLine("1. Schedule a new delivery");
+            Console.WriteLine("2. View current trips");
+            Console.WriteLine("3. Exit");
+            Console.Write("Enter your choice (1-3): ");
+
+            string choice = Console.ReadLine()?.Trim();
+
+            switch (choice)
+            {
+                case "1":
+                    Delivery newDelivery = PromptForDelivery();
+                    trips = planner.ScheduleDelivery(newDelivery, trips);
+                    Console.WriteLine("\n[Delivery Scheduled & Trips Rebalanced]");
+                    PrintTrips(trips);
+                    break;
+
+                case "2":
+                    PrintTrips(trips);
+                    break;
+
+                case "3":
+                    running = false;
+                    Console.WriteLine("Exiting program. Goodbye!");
+                    break;
+
+                default:
+                    Console.WriteLine("Invalid option. Please choose 1, 2, or 3.");
+                    break;
+            }
+        }
+    }
+
+    static string GetValidFilePath()
+    {
+        while (true)
+        {
+            Console.Write("Enter file path (or press Enter for default 'test.txt'): ");
+            string input = Console.ReadLine()?.Trim();
+
+            //if (string.IsNullOrEmpty(input))
+            //    input = @"C:\Users\shosho\Desktop\test.txt";
+            if (string.IsNullOrEmpty(input))
+            {
+                // Walks up from bin\Debug\netX.0\ to the project root
+                string basePath = AppContext.BaseDirectory;
+                input = Path.GetFullPath(Path.Combine(basePath, @"..\..\..\..\..\test.txt"));
+            }
+
+            if (File.Exists(input))
+                return input;
+
+            Console.WriteLine($"Error: File not found at '{input}'. Please try again.\n");
+        }
+    }
+
+    static Delivery PromptForDelivery()
+    {
+        Console.WriteLine("\n--- Enter New Delivery Details ---");
+
+        string area;
+        while (true)
+        {
+            Console.Write("Enter Area: ");
+            area = Console.ReadLine()?.Trim();
+            if (!string.IsNullOrWhiteSpace(area))
+                break;
+            Console.WriteLine("Area cannot be empty.");
         }
 
-        Console.WriteLine($"Total Weight: {trip.TotalWeight} kg");
-        Console.WriteLine($"Free Weight: {trip.FreeWeight()} kg");
-        Console.WriteLine();
+        int priority;
+        while (true)
+        {
+            Console.Write("Enter Priority (integer): ");
+            if (int.TryParse(Console.ReadLine(), out priority) && priority > 0)
+                break;
+            Console.WriteLine("Priority must be a positive integer.");
+        }
+
+        double weight;
+        while (true)
+        {
+            Console.Write($"Enter Package Weight in kg (Max {Trip.MaxCapacity}): ");
+            if (double.TryParse(Console.ReadLine(), out weight) && weight > 0 && weight <= Trip.MaxCapacity)
+                break;
+            Console.WriteLine($"Invalid weight. Must be between 0 and {Trip.MaxCapacity} kg.");
+        }
+
+        return new Delivery(area, priority, weight);
+    }
+
+    static List<Delivery> ReadDeliveriesFromFile(string filePath)
+    {
+        List<Delivery> deliveries = new List<Delivery>();
+        string[] lines = File.ReadAllLines(filePath);
+
+        foreach (string line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            string[] parts = line.Split('|');
+            if (parts.Length < 4)
+                continue;
+
+            if (int.TryParse(parts[0], out int id) &&
+                int.TryParse(parts[2], out int priority) &&
+                double.TryParse(parts[3], out double weight))
+            {
+                deliveries.Add(new Delivery(id, parts[1].Trim(), priority, weight));
+            }
+        }
+
+        return deliveries;
+    }
+
+    static void PrintTrips(List<Trip> trips)
+    {
+        if (trips == null || trips.Count == 0)
+        {
+            Console.WriteLine("\nNo trips available.");
+            return;
+        }
+
+        Console.WriteLine("\n================ Current Trips ================");
+        for (int i = 0; i < trips.Count; i++)
+        {
+            Console.WriteLine($"Trip #{trips[i].Id} | Area: {trips[i].Area} | Priority: {trips[i].Priority}");
+            Console.WriteLine(new string('-', 45));
+
+            foreach (Delivery delivery in trips[i].Deliveries)
+            {
+                Console.WriteLine($"  -> ID: {delivery.Id,-4} | Priority: {delivery.Priority,-2} | Weight: {delivery.PackageWeight:0.0} kg");
+            }
+
+            Console.WriteLine($"Total Weight: {trips[i].TotalWeight:0.0} / {Trip.MaxCapacity} kg | Free: {trips[i].FreeWeight():0.0} kg");
+            Console.WriteLine();
+        }
+        Console.WriteLine("===============================================");
     }
 }
