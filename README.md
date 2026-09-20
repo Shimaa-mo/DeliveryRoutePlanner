@@ -29,11 +29,13 @@ ID|Area|Priority|PackageWeight
 Example:
 
 ```text
-1|Cairo|1|4.5
-2|Giza|2|3
-3|Cairo|2|5
-4|Alexandria|1|7
-5|Cairo|3|2
+1|Nasr City|2|4.5
+2|Maadi|1|2.0
+3|Nasr City|3|1.2
+4|Zamalek|1|1.0
+5|Maadi|2|3.5
+6|Nasr City|3|11
+7|Nasr City|4|5
 ```
 
 The fields are:
