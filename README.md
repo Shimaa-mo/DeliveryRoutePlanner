@@ -136,7 +136,7 @@ Contains sample delivery data that can be used to run the program.
 2. Open `eT3_assignment.sln` in Visual Studio.
 3. Build the solution.
 4. Run the console application.
-5. When prompted, enter the path to the input file, for example:
+5. When prompted, enter the path to the input file, or press enter to use the configured default path, for example:
 
 ```text
 D:\vs projects\eT3_assignment\DeliveryRoutePlanner\test.txt
