@@ -16,21 +16,17 @@ namespace eT3_assignment
         public int Priority { get; set; }
         public string Area { get; set; }
 
+        public double FreeWeight => MaxCapacity - TotalWeight;
+
+        public int DeliveriesCount => Deliveries.Count;
+
         public Trip()
         {
             Deliveries = new List<Delivery>();
         }
 
-        public double FreeWeight() => MaxCapacity - TotalWeight;
-
-        public int DeliveriesCount() => Deliveries.Count;
-
-        //public double TotalWeight() => _totalWeight;
-
-        public List<Delivery> GetDeliveries() => Deliveries;
-
         public bool CanFit(Delivery delivery)
-        => delivery != null && delivery.PackageWeight <= FreeWeight();
+        => delivery != null && delivery.PackageWeight <= FreeWeight;
 
         public bool TryAdd(Delivery delivery)
         {

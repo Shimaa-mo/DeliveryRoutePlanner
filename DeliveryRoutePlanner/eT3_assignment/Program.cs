@@ -162,7 +162,7 @@ class Program
                 Console.WriteLine($"  -> ID: {delivery.Id,-4} | Priority: {delivery.Priority,-2} | Weight: {delivery.PackageWeight:0.0} kg");
             }
 
-            Console.WriteLine($"Total Weight: {trips[i].TotalWeight:0.0} / {Trip.MaxCapacity} kg | Free: {trips[i].FreeWeight():0.0} kg");
+            Console.WriteLine($"Total Weight: {trips[i].TotalWeight:0.0} / {Trip.MaxCapacity} kg | Free: {trips[i].FreeWeight:0.0} kg");
             Console.WriteLine();
         }
         Console.WriteLine("===============================================");

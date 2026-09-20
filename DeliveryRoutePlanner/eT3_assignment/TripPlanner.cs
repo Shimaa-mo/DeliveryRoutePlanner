@@ -23,7 +23,7 @@ namespace eT3_assignment
             while (deliveries.Count > 0)
             {
                 // if it's new trip , put highest priority first
-                if (currentTrip.DeliveriesCount() == 0)
+                if (currentTrip.DeliveriesCount == 0)
                 {
                     var seed = deliveries.MinBy(d => d.Priority);
                     currentTrip.Area = seed.Area;
@@ -65,7 +65,7 @@ namespace eT3_assignment
             }
 
             // add the last trip to the trips
-            if (currentTrip.DeliveriesCount() > 0)
+            if (currentTrip.DeliveriesCount > 0)
             {
                 currentTrip.Id = trips.Count + 1;
                 trips.Add(currentTrip);
@@ -93,7 +93,7 @@ namespace eT3_assignment
             var readyTrip = trips
                 .Where(t => t.Area == delivery.Area
                          && t.Priority <= delivery.Priority
-                         && t.FreeWeight() >= delivery.PackageWeight)
+                         && t.FreeWeight >= delivery.PackageWeight)
                 .OrderBy(t => t.Priority)
                 .FirstOrDefault();
 
@@ -126,7 +126,7 @@ namespace eT3_assignment
             var lowerTrip = lowerTrips.MinBy(t => t.Priority);
 
             // if the first trip -that has lower priority than this delivery- has space for this delivery , add delivery to it and return
-            if (lowerTrip.FreeWeight() >= delivery.PackageWeight && lowerTrip.Area == delivery.Area)
+            if (lowerTrip.FreeWeight >= delivery.PackageWeight && lowerTrip.Area == delivery.Area)
             {
                 lowerTrip.AddDelivery(delivery);
                 lowerTrip.Priority = delivery.Priority;
@@ -156,7 +156,7 @@ namespace eT3_assignment
                 return trips;
 
             // if the trip has space for other trips get from lower priority trips , and organize them same way
-            double freeWeight = trip.FreeWeight();
+            double freeWeight = trip.FreeWeight;
             var sameAreaTrips = lowerTrips
                 .Where(t => t.Area == delivery.Area)
                 .OrderBy(t => t.Id)
@@ -177,7 +177,7 @@ namespace eT3_assignment
                 Trip targetTrip = rebalanceQueue.Dequeue();
 
                 // if the target trip has no more space , or didnt removed from the trips
-                if (targetTrip.FreeWeight() <= 0 || !trips.Contains(targetTrip))
+                if (targetTrip.FreeWeight <= 0 || !trips.Contains(targetTrip))
                     continue;
 
                 // lower priority trips in the same area
@@ -188,14 +188,14 @@ namespace eT3_assignment
 
                 foreach (Trip sourceTrip in lowerTrips)
                 {
-                    if (targetTrip.FreeWeight() <= 0)
+                    if (targetTrip.FreeWeight <= 0)
                         break;
 
                     // from this sourceTrip take the deliveries that fits in the target trip , and put source trip in queue (if you took from it)
                     while (true)
                     {
                         Delivery bestDelivery = sourceTrip.Deliveries
-                            .Where(d => d.PackageWeight <= targetTrip.FreeWeight())
+                            .Where(d => d.PackageWeight <= targetTrip.FreeWeight)
                             .MinBy(d => d.Priority);
 
                         if (bestDelivery == null)
@@ -206,7 +206,7 @@ namespace eT3_assignment
                         sourceTrip.RemoveDelivery(bestDelivery);
 
                         // 2. if the sourceTrip has no more deliveries , remove it
-                        if (sourceTrip.DeliveriesCount() == 0)
+                        if (sourceTrip.DeliveriesCount == 0)
                         {
                             trips.Remove(sourceTrip);
                             sameAreaTrips.Remove(sourceTrip);
@@ -223,7 +223,7 @@ namespace eT3_assignment
                         }
 
                         // if targetTrip is full , then go to the next trip in the queue
-                        if (targetTrip.FreeWeight() <= 0)
+                        if (targetTrip.FreeWeight <= 0)
                             break;
                     }
                 }
